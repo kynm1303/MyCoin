@@ -12,3 +12,4 @@ app.get('/', function (req, res) {
 app.listen(httpPort, () => {
     console.log('Listening http on port: ' + httpPort);
 });
+//# sourceMappingURL=main.js.map

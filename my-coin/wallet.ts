@@ -1,6 +1,6 @@
 import ecdsa from 'elliptic';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
-import { Transaction, TxIn, TxOut, UnspentTxOut, generateTransactionId, signTxIn } from './transaction';
+import { Transaction, TxIn, TxOut, UnspentTxOut, generateTransactionId, getPublicKey, signTxIn } from './transaction';
 
 const EC = new ecdsa.ec("secp256k1");
 
@@ -72,7 +72,7 @@ const createTxOuts = (receiverAddress: string, myAddress: string, amount: number
 
 const createTransaction = (receiverAddress: string, privateKey: string, amount: number, unspentTxOuts: UnspentTxOut[]): Transaction => {
 
-    const myAddress = getPublicFromWallet();
+    const myAddress: string = getPublicKey(privateKey);
     const myUnspentTxOuts = unspentTxOuts.filter(txOut => txOut.address == myAddress);
     const {includedTxOuts, leftOverAmount} = findTxOutsForAmount(amount, myUnspentTxOuts);
 
@@ -89,4 +89,14 @@ const createTransaction = (receiverAddress: string, privateKey: string, amount: 
     });
 
     return tx;
+}
+
+export {
+    createTransaction,
+    getPublicFromWallet,
+    getPrivateFromWallet,
+    getBalance,
+    generatePrivateKey,
+    initWallet,
+    deleteWallet,
 }

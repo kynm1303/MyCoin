@@ -16,3 +16,4 @@ const genesisBlock = new Block(0, '91a73664bc84c0baa1fc75ea6e4aa6d1d20c5df664c72
 let blockchain = [genesisBlock];
 const getBlockchain = () => blockchain;
 console.log(getBlockchain());
+//# sourceMappingURL=blockchain.js.map

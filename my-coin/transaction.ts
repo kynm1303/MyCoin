@@ -1,5 +1,5 @@
-import CryptoJS from "crypto-js";
-import ecdsa from 'elliptic';
+import * as CryptoJS from "crypto-js";
+import * as ecdsa from 'elliptic';
 
 const ec = new ecdsa.ec('secp256k1');
 const COINBASE_AMOUNT: number = 50;
@@ -339,4 +339,8 @@ const validateBlockTransactions = (transactions: Transaction[], unspentTxOuts: U
         .reduce((a, b) => a && b, true);
 }
 
-export { genesisTransaction, Transaction, UnspentTxOut, TxIn, TxOut, signTxIn, generateTransactionId }
+export { genesisTransaction,
+    Transaction, UnspentTxOut,
+    TxIn, TxOut, signTxIn, generateTransactionId,
+    getPublicKey
+}
