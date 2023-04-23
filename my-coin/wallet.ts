@@ -1,6 +1,7 @@
 import ecdsa from 'elliptic';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { Transaction, TxIn, TxOut, UnspentTxOut, generateTransactionId, getPublicKey, signTxIn } from './transaction';
+import { getUnspentTxOuts } from './blockchain';
 
 const EC = new ecdsa.ec("secp256k1");
 
@@ -43,6 +44,15 @@ const getBalance = (address: string, unspentTxOuts: UnspentTxOut[]): number => {
         .reduce((a, b) => a + b, 0);
 }
 
+// gets the unspent transaction outputs owned by the wallet
+const getMyUnspentTransactionOutputs = () => {
+    return findUnspentTxOuts(getPublicFromWallet(), getUnspentTxOuts());
+};
+
+const findUnspentTxOuts = (ownerAddress: string, unspentTxOuts: UnspentTxOut[]) => {
+    return unspentTxOuts.filter((uTxO: UnspentTxOut) => uTxO.address === ownerAddress);
+};
+
 const findTxOutsForAmount = (amount: number, myUnspentTxOuts: UnspentTxOut[]) => {
     let currentAmount = 0;
     const includedTxOuts = [];
@@ -70,10 +80,29 @@ const createTxOuts = (receiverAddress: string, myAddress: string, amount: number
     }
 }
 
-const createTransaction = (receiverAddress: string, privateKey: string, amount: number, unspentTxOuts: UnspentTxOut[]): Transaction => {
+const filterTxPoolTxs = (unspentTxOuts: UnspentTxOut[], transactionPool: Transaction[]): UnspentTxOut[] => {
+    const txIns: TxIn[] = transactionPool.map((tx: Transaction) => tx.txIns).reduce((a, b) => a.concat(b), []);
+    const removable: UnspentTxOut[] = [];
+    for (const unspentTxOut of unspentTxOuts) {
+        const txIn = txIns.find((aTxIn: TxIn) => {
+            return aTxIn.txOutIndex === unspentTxOut.txOutIndex && aTxIn.txOutId === unspentTxOut.txOutId;
+        });
+
+        if (txIn === undefined) {
+
+        } else {
+            removable.push(unspentTxOut);
+        }
+    }
+
+    return unspentTxOuts.filter((txOut) => (removable.indexOf(txOut) != -1));
+};
+
+const createTransaction = (receiverAddress: string, amount: number, privateKey: string, unspentTxOuts: UnspentTxOut[], txPool: Transaction[]): Transaction => {
 
     const myAddress: string = getPublicKey(privateKey);
-    const myUnspentTxOuts = unspentTxOuts.filter(txOut => txOut.address == myAddress);
+    const myUnspentTxOutsA = unspentTxOuts.filter(txOut => txOut.address == myAddress);
+    const myUnspentTxOuts = filterTxPoolTxs(myUnspentTxOutsA, txPool);
     const {includedTxOuts, leftOverAmount} = findTxOutsForAmount(amount, myUnspentTxOuts);
 
     const unsignedTxIns: TxIn[] = myUnspentTxOuts.map(txOut => createUnsignedTxIn(txOut));
@@ -91,6 +120,10 @@ const createTransaction = (receiverAddress: string, privateKey: string, amount: 
     return tx;
 }
 
+const getAccountBalance = (): number => {
+    return getBalance(getPublicFromWallet(), getUnspentTxOuts());
+};
+
 export {
     createTransaction,
     getPublicFromWallet,
@@ -99,4 +132,6 @@ export {
     generatePrivateKey,
     initWallet,
     deleteWallet,
+    getMyUnspentTransactionOutputs,
+    getAccountBalance
 }

@@ -294,7 +294,7 @@ const validateCoinbaseTx = (transaction: Transaction, blockIndex: number): boole
     return true;
 };
 
-const getCoinBaseTransactionId = (txOutAddress: string, blockIndex: number) => {
+const getCoinBaseTransaction = (txOutAddress: string, blockIndex: number) => {
     const signature = '';
     const txOutId = '';
     const txOutIndex = blockIndex;
@@ -303,9 +303,9 @@ const getCoinBaseTransactionId = (txOutAddress: string, blockIndex: number) => {
     const txOut: TxOut = new TxOut(txOutAddress, COINBASE_AMOUNT);
 
     const coinbaseTransaction = new Transaction();
-    coinbaseTransaction.id = generateTransactionId(coinbaseTransaction);
     coinbaseTransaction.txIns = [txIn];
     coinbaseTransaction.txOuts = [txOut];
+    coinbaseTransaction.id = generateTransactionId(coinbaseTransaction);
 
     return coinbaseTransaction;
 }
@@ -342,5 +342,10 @@ const validateBlockTransactions = (transactions: Transaction[], unspentTxOuts: U
 export { genesisTransaction,
     Transaction, UnspentTxOut,
     TxIn, TxOut, signTxIn, generateTransactionId,
-    getPublicKey
+    getPublicKey,
+    getCoinBaseTransaction,
+    validateTransaction,
+    validateBlockTransactions,
+    updateUnspentTxOuts,
+    isValidAddress
 }
