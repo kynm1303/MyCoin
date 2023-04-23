@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPublicKey = exports.generateTransactionId = exports.signTxIn = exports.TxOut = exports.TxIn = exports.UnspentTxOut = exports.Transaction = exports.genesisTransaction = void 0;
+exports.isValidAddress = exports.updateUnspentTxOuts = exports.validateBlockTransactions = exports.validateTransaction = exports.getCoinBaseTransaction = exports.getPublicKey = exports.generateTransactionId = exports.signTxIn = exports.TxOut = exports.TxIn = exports.UnspentTxOut = exports.Transaction = exports.genesisTransaction = void 0;
 const CryptoJS = __importStar(require("crypto-js"));
 const ecdsa = __importStar(require("elliptic"));
 const ec = new ecdsa.ec('secp256k1');
@@ -131,6 +131,7 @@ const updateUnspentTxOuts = (newTransactions, aUnspentTxOuts) => {
         .concat(newUnspentTxOuts);
     return resultingUnspentTxOuts;
 };
+exports.updateUnspentTxOuts = updateUnspentTxOuts;
 const isValidTxInStructure = (txIn) => {
     if (txIn == null) {
         console.log('txIn is null');
@@ -168,6 +169,7 @@ const isValidAddress = (address) => {
     }
     return true;
 };
+exports.isValidAddress = isValidAddress;
 const isValidTxOutStructure = (txOut) => {
     if (txOut == null) {
         console.log('txOut is null');
@@ -249,6 +251,7 @@ const validateTransaction = (transaction, aUnspentTxOuts) => {
     }
     return true;
 };
+exports.validateTransaction = validateTransaction;
 const validateCoinbaseTx = (transaction, blockIndex) => {
     if (generateTransactionId(transaction) !== transaction.id) {
         console.log('invalid coinbase tx id: ' + transaction.id);
@@ -272,18 +275,19 @@ const validateCoinbaseTx = (transaction, blockIndex) => {
     }
     return true;
 };
-const getCoinBaseTransactionId = (txOutAddress, blockIndex) => {
+const getCoinBaseTransaction = (txOutAddress, blockIndex) => {
     const signature = '';
     const txOutId = '';
     const txOutIndex = blockIndex;
     const txIn = new TxIn(txOutId, txOutIndex, signature);
     const txOut = new TxOut(txOutAddress, COINBASE_AMOUNT);
     const coinbaseTransaction = new Transaction();
-    coinbaseTransaction.id = generateTransactionId(coinbaseTransaction);
     coinbaseTransaction.txIns = [txIn];
     coinbaseTransaction.txOuts = [txOut];
+    coinbaseTransaction.id = generateTransactionId(coinbaseTransaction);
     return coinbaseTransaction;
 };
+exports.getCoinBaseTransaction = getCoinBaseTransaction;
 const checkForDuplicates = (txIns) => {
     for (let i = 0; i < txIns.length; i++) {
         for (let j = i + 1; j < txIns.length; j++) {
@@ -309,4 +313,5 @@ const validateBlockTransactions = (transactions, unspentTxOuts, blockIndex) => {
     return normalTransactions.map((tx) => validateTransaction(tx, unspentTxOuts))
         .reduce((a, b) => a && b, true);
 };
+exports.validateBlockTransactions = validateBlockTransactions;
 //# sourceMappingURL=transaction.js.map

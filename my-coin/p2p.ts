@@ -1,7 +1,9 @@
 
 import * as WebSocket from 'ws';
 import {Server} from 'ws';
-import { Block, getBlockchain, getLastestBlock } from './blockchain';
+import { Block, addBlockToChain, getBlockchain, getLastestBlock, isValidBlockStructure, replaceChain } from './blockchain';
+import { getTransactionPool, handleReceivedTransaction } from './transactionPool';
+import { Transaction } from './transaction';
 
 enum MessageType {
     QUERY_LATEST = 0,
@@ -64,6 +66,49 @@ const queryTransactionPoolMsg = (): Message => ({
     'data': null
 });
 
+const queryChainLengthMsg = (): Message => ({'type': MessageType.QUERY_LATEST, 'data': null});
+
+const responseTransactionPoolMsg = (): Message => ({
+    'type': MessageType.RESPONSE_TRANSACTION_POOL,
+    'data': JSON.stringify(getTransactionPool())
+});
+
+const queryAllMsg = (): Message => ({'type': MessageType.QUERY_ALL, 'data': null});
+
+const broadcastLatest = (): void => {
+    broadcast(responseLatestMsg());
+};
+
+const handleBlockchainResponse = (receivedBlocks: Block[]) => {
+    if (receivedBlocks.length === 0) {
+        console.log('received block chain size of 0');
+        return;
+    }
+    const latestBlockReceived: Block = receivedBlocks[receivedBlocks.length - 1];
+    if (!isValidBlockStructure(latestBlockReceived)) {
+        console.log('block structuture not valid');
+        return;
+    }
+    const latestBlockHeld: Block = getLastestBlock();
+    if (latestBlockReceived.index > latestBlockHeld.index) {
+        console.log('blockchain possibly behind. We got: '
+            + latestBlockHeld.index + ' Peer got: ' + latestBlockReceived.index);
+        if (latestBlockHeld.hash === latestBlockReceived.previousHash) {
+            if (addBlockToChain(latestBlockReceived)) {
+                broadcast(responseLatestMsg());
+            }
+        } else if (receivedBlocks.length === 1) {
+            console.log('We have to query the chain from our peer');
+            broadcast(queryAllMsg());
+        } else {
+            console.log('Received blockchain is longer than current blockchain');
+            replaceChain(receivedBlocks);
+        }
+    } else {
+        console.log('received blockchain is not longer than received blockchain. Do nothing');
+    }
+};
+
 const initMessageHandler = (ws: WebSocket) => {
     ws.on('message', (data: string) => {
 
@@ -117,8 +162,23 @@ const initMessageHandler = (ws: WebSocket) => {
 };
 
 const write = (ws: WebSocket, message: Message): void => ws.send(JSON.stringify(message));
+const broadcast = (message: Message): void => sockets.forEach((socket) => write(socket, message));
 
+const broadCastTransactionPool = () => {
+    broadcast(responseTransactionPoolMsg());
+};
+
+const initErrorHandler = (ws: WebSocket) => {
+    const closeConnection = (myWs: WebSocket) => {
+        console.log('connection failed to peer: ' + myWs.url);
+        sockets.splice(sockets.indexOf(myWs), 1);
+    };
+    ws.on('close', () => closeConnection(ws));
+    ws.on('error', () => closeConnection(ws));
+};
 
 export {
-    initP2PServer
+    initP2PServer,
+    broadcastLatest,
+    broadCastTransactionPool
 }

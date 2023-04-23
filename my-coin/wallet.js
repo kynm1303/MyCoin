@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteWallet = exports.initWallet = exports.generatePrivateKey = exports.getBalance = exports.getPrivateFromWallet = exports.getPublicFromWallet = exports.createTransaction = void 0;
+exports.getAccountBalance = exports.getMyUnspentTransactionOutputs = exports.deleteWallet = exports.initWallet = exports.generatePrivateKey = exports.getBalance = exports.getPrivateFromWallet = exports.getPublicFromWallet = exports.createTransaction = void 0;
 const elliptic_1 = __importDefault(require("elliptic"));
 const fs_1 = require("fs");
 const transaction_1 = require("./transaction");
+const blockchain_1 = require("./blockchain");
 const EC = new elliptic_1.default.ec("secp256k1");
 const privateKeyLocation = "node/wallet/private_key.txt";
 const getPrivateFromWallet = () => {
@@ -47,6 +48,13 @@ const getBalance = (address, unspentTxOuts) => {
         .reduce((a, b) => a + b, 0);
 };
 exports.getBalance = getBalance;
+const getMyUnspentTransactionOutputs = () => {
+    return findUnspentTxOuts(getPublicFromWallet(), (0, blockchain_1.getUnspentTxOuts)());
+};
+exports.getMyUnspentTransactionOutputs = getMyUnspentTransactionOutputs;
+const findUnspentTxOuts = (ownerAddress, unspentTxOuts) => {
+    return unspentTxOuts.filter((uTxO) => uTxO.address === ownerAddress);
+};
 const findTxOutsForAmount = (amount, myUnspentTxOuts) => {
     let currentAmount = 0;
     const includedTxOuts = [];
@@ -72,9 +80,25 @@ const createTxOuts = (receiverAddress, myAddress, amount, leftOverAmount) => {
         return [txOut1, new transaction_1.TxOut(myAddress, leftOverAmount)];
     }
 };
-const createTransaction = (receiverAddress, privateKey, amount, unspentTxOuts) => {
+const filterTxPoolTxs = (unspentTxOuts, transactionPool) => {
+    const txIns = transactionPool.map((tx) => tx.txIns).reduce((a, b) => a.concat(b), []);
+    const removable = [];
+    for (const unspentTxOut of unspentTxOuts) {
+        const txIn = txIns.find((aTxIn) => {
+            return aTxIn.txOutIndex === unspentTxOut.txOutIndex && aTxIn.txOutId === unspentTxOut.txOutId;
+        });
+        if (txIn === undefined) {
+        }
+        else {
+            removable.push(unspentTxOut);
+        }
+    }
+    return unspentTxOuts.filter((txOut) => (removable.indexOf(txOut) != -1));
+};
+const createTransaction = (receiverAddress, amount, privateKey, unspentTxOuts, txPool) => {
     const myAddress = (0, transaction_1.getPublicKey)(privateKey);
-    const myUnspentTxOuts = unspentTxOuts.filter(txOut => txOut.address == myAddress);
+    const myUnspentTxOutsA = unspentTxOuts.filter(txOut => txOut.address == myAddress);
+    const myUnspentTxOuts = filterTxPoolTxs(myUnspentTxOutsA, txPool);
     const { includedTxOuts, leftOverAmount } = findTxOutsForAmount(amount, myUnspentTxOuts);
     const unsignedTxIns = myUnspentTxOuts.map(txOut => createUnsignedTxIn(txOut));
     const tx = new transaction_1.Transaction();
@@ -88,4 +112,8 @@ const createTransaction = (receiverAddress, privateKey, amount, unspentTxOuts) =
     return tx;
 };
 exports.createTransaction = createTransaction;
+const getAccountBalance = () => {
+    return getBalance(getPublicFromWallet(), (0, blockchain_1.getUnspentTxOuts)());
+};
+exports.getAccountBalance = getAccountBalance;
 //# sourceMappingURL=wallet.js.map
