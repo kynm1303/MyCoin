@@ -1,2 +1,2 @@
 # MyCoin
- A cryptocurrency to learn basics principles of blockchain
+ A cryptocurrency to learn basic principles of blockchain
