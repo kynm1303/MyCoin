@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.hexToBinary = void 0;
 const hexToBinary = (s) => {
     let ret = '';
     const lookupTable = {
@@ -10,15 +9,14 @@ const hexToBinary = (s) => {
         'e': '1110', 'f': '1111'
     };
     for (let i = 0; i < s.length; i = i + 1) {
-        let index = s[i];
-        if (lookupTable[index]) {
-            ret += lookupTable[index];
+        if (lookupTable[s[i]]) {
+            ret += lookupTable[s[i]];
         }
         else {
-            return "";
+            return null;
         }
     }
     return ret;
 };
 exports.hexToBinary = hexToBinary;
-//# sourceMappingURL=utils.js.map
+//# sourceMappingURL=util.js.map

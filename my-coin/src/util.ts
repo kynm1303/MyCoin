@@ -7,11 +7,10 @@ const hexToBinary = (s: string): string => {
         'e': '1110', 'f': '1111'
     };
     for (let i: number = 0; i < s.length; i = i + 1) {
-        let index = s[i] as keyof typeof lookupTable;
-        if (lookupTable[index]) {
-            ret += lookupTable[index];
+        if (lookupTable[s[i]]) {
+            ret += lookupTable[s[i]];
         } else {
-            return "";
+            return null;
         }
     }
     return ret;

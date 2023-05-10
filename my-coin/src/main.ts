@@ -1,49 +1,48 @@
-import express from "express";
+import * as  bodyParser from 'body-parser';
+import * as express from 'express';
+import * as _ from 'lodash';
+import {
+    Block, generateNextBlock, generatenextBlockWithTransaction, generateRawNextBlock, getAccountBalance,
+    getBlockchain, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction
+} from './blockchain';
+import {connectToPeers, getSockets, initP2PServer} from './p2p';
+import {UnspentTxOut} from './transaction';
+import {getTransactionPool} from './transactionPool';
+import {getPublicFromWallet, initWallet} from './wallet';
 
-const app = express();
-const httpPort: number = parseInt(process.env.HTTP_PORT || "") || 3001;
-const p2pPort: number = parseInt(process.env.P2P_PORT || "") || 6001;
+const httpPort: number = parseInt(process.env.HTTP_PORT) || 3001;
+const p2pPort: number = parseInt(process.env.P2P_PORT) || 6001;
 
-app.get('/', function (req, res) {
-    res.send('Hello World')
-})
-
-import * as bodyParser from 'body-parser';
-import { Block, generateNextBlock, generateNextBlockWithTransaction, generateRawNextBlock, getBlockchain, getUnspentTxOuts, sendTransaction } from "./blockchain";
-import { get } from "http";
-import { Transaction, UnspentTxOut } from "./transaction";
-import { createTransaction, getAccountBalance, getMyUnspentTransactionOutputs, getPrivateFromWallet } from "./wallet";
-import { addToTransactionPool, getTransactionPool } from "./transactionPool";
-import { initP2PServer } from "./p2p";
-
-const initHttpServer = (httpPort: number) => {
+const initHttpServer = (myHttpPort: number) => {
     const app = express();
-    app.use(bodyParser.json());    
-    
+    app.use(bodyParser.json());
+
+    app.use((err, req, res, next) => {
+        if (err) {
+            res.status(400).send(err.message);
+        }
+    });
+
     app.get('/blocks', (req, res) => {
         res.send(getBlockchain());
     });
 
     app.get('/block/:hash', (req, res) => {
-        const block = getBlockchain().find((block) => block.hash = req.params.hash);
+        const block = _.find(getBlockchain(), {'hash' : req.params.hash});
         res.send(block);
     });
 
     app.get('/transaction/:id', (req, res) => {
-        const blockchain = getBlockchain();
-        let tx: Transaction = null;
-        for (let block of blockchain) {
-            let tx = block.data.find((blockTx) => blockTx.id == req.params.id)
-            if (tx != null) {
-                break;
-            }
-        }
+        const tx = _(getBlockchain())
+            .map((blocks) => blocks.data)
+            .flatten()
+            .find({'id': req.params.id});
         res.send(tx);
     });
 
     app.get('/address/:address', (req, res) => {
         const unspentTxOuts: UnspentTxOut[] =
-            getUnspentTxOuts().filter((uTxO) => uTxO.address === req.params.address);
+            _.filter(getUnspentTxOuts(), (uTxO) => uTxO.address === req.params.address);
         res.send({'unspentTxOuts': unspentTxOuts});
     });
 
@@ -68,7 +67,6 @@ const initHttpServer = (httpPort: number) => {
         }
     });
 
-    
     app.post('/mineBlock', (req, res) => {
         const newBlock: Block = generateNextBlock();
         if (newBlock === null) {
@@ -83,11 +81,16 @@ const initHttpServer = (httpPort: number) => {
         res.send({'balance': balance});
     });
 
+    app.get('/address', (req, res) => {
+        const address: string = getPublicFromWallet();
+        res.send({'address': address});
+    });
+
     app.post('/mineTransaction', (req, res) => {
         const address = req.body.address;
         const amount = req.body.amount;
         try {
-            const resp = generateNextBlockWithTransaction(address, amount);
+            const resp = generatenextBlockWithTransaction(address, amount);
             res.send(resp);
         } catch (e) {
             console.log(e.message);
@@ -110,9 +113,17 @@ const initHttpServer = (httpPort: number) => {
             res.status(400).send(e.message);
         }
     });
-    
+
     app.get('/transactionPool', (req, res) => {
         res.send(getTransactionPool());
+    });
+
+    app.get('/peers', (req, res) => {
+        res.send(getSockets().map((s: any) => s._socket.remoteAddress + ':' + s._socket.remotePort));
+    });
+    app.post('/addPeer', (req, res) => {
+        connectToPeers(req.body.peer);
+        res.send();
     });
 
     app.post('/stop', (req, res) => {
@@ -120,10 +131,11 @@ const initHttpServer = (httpPort: number) => {
         process.exit();
     });
 
-    app.listen(httpPort, () => {
-        console.log('Listening http on port: ' + httpPort);
+    app.listen(myHttpPort, () => {
+        console.log('Listening http on port: ' + myHttpPort);
     });
-}
+};
 
 initHttpServer(httpPort);
 initP2PServer(p2pPort);
+initWallet();
