@@ -1,18 +1,12 @@
-import {ec} from 'elliptic';
-import {existsSync, readFileSync, unlinkSync, writeFileSync} from 'fs';
+import { ec } from 'elliptic';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import * as _ from 'lodash';
-import {getPublicKey, getTransactionId, signTxIn, Transaction, TxIn, TxOut, UnspentTxOut} from './transaction';
+import { getPublicKey, getTransactionId, signTxIn, Transaction, TxIn, TxOut, UnspentTxOut } from './transaction';
 
 const EC = new ec('secp256k1');
 const privateKeyLocation = process.env.PRIVATE_KEY || 'node/wallet/private_key';
 
-const getPrivateFromWallet = (): string => {
-    const buffer = readFileSync(privateKeyLocation, 'utf8');
-    return buffer.toString();
-};
-
-const getPublicFromWallet = (): string => {
-    const privateKey = getPrivateFromWallet();
+const getPublicFromPrivate = (privateKey): string => {
     const key = EC.keyFromPrivate(privateKey, 'hex');
     return key.getPublic().encode('hex');
 };
@@ -21,17 +15,6 @@ const generatePrivateKey = (): string => {
     const keyPair = EC.genKeyPair();
     const privateKey = keyPair.getPrivate();
     return privateKey.toString(16);
-};
-
-const initWallet = () => {
-    // let's not override existing private keys
-    if (existsSync(privateKeyLocation)) {
-        return;
-    }
-    const newPrivateKey = generatePrivateKey();
-
-    writeFileSync(privateKeyLocation, newPrivateKey);
-    console.log('new wallet with private key created to : %s', privateKeyLocation);
 };
 
 const deleteWallet = () => {
@@ -58,7 +41,7 @@ const findTxOutsForAmount = (amount: number, myUnspentTxOuts: UnspentTxOut[]) =>
         currentAmount = currentAmount + myUnspentTxOut.amount;
         if (currentAmount >= amount) {
             const leftOverAmount = currentAmount - amount;
-            return {includedUnspentTxOuts, leftOverAmount};
+            return { includedUnspentTxOuts, leftOverAmount };
         }
     }
 
@@ -99,7 +82,7 @@ const filterTxPoolTxs = (unspentTxOuts: UnspentTxOut[], transactionPool: Transac
 };
 
 const createTransaction = (receiverAddress: string, amount: number, privateKey: string,
-                           unspentTxOuts: UnspentTxOut[], txPool: Transaction[]): Transaction => {
+    unspentTxOuts: UnspentTxOut[], txPool: Transaction[]): Transaction => {
 
     console.log('txPool: %s', JSON.stringify(txPool));
     const myAddress: string = getPublicKey(privateKey);
@@ -108,7 +91,7 @@ const createTransaction = (receiverAddress: string, amount: number, privateKey: 
     const myUnspentTxOuts = filterTxPoolTxs(myUnspentTxOutsA, txPool);
 
     // filter from unspentOutputs such inputs that are referenced in pool
-    const {includedUnspentTxOuts, leftOverAmount} = findTxOutsForAmount(amount, myUnspentTxOuts);
+    const { includedUnspentTxOuts, leftOverAmount } = findTxOutsForAmount(amount, myUnspentTxOuts);
 
     const toUnsignedTxIn = (unspentTxOut: UnspentTxOut) => {
         const txIn: TxIn = new TxIn();
@@ -132,5 +115,8 @@ const createTransaction = (receiverAddress: string, amount: number, privateKey: 
     return tx;
 };
 
-export {createTransaction, getPublicFromWallet,
-    getPrivateFromWallet, getBalance, generatePrivateKey, initWallet, deleteWallet, findUnspentTxOuts};
+export {
+    createTransaction,
+    getBalance, generatePrivateKey, deleteWallet, findUnspentTxOuts,
+    getPublicFromPrivate
+};

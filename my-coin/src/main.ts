@@ -8,7 +8,7 @@ import {
 import {connectToPeers, getSockets, initP2PServer} from './p2p';
 import {UnspentTxOut} from './transaction';
 import {getTransactionPool} from './transactionPool';
-import {getPublicFromWallet, initWallet} from './wallet';
+import {generatePrivateKey, getPublicFromPrivate} from './wallet';
 
 const httpPort: number = parseInt(process.env.HTTP_PORT) || 3001;
 const p2pPort: number = parseInt(process.env.P2P_PORT) || 6001;
@@ -46,12 +46,32 @@ const initHttpServer = (myHttpPort: number) => {
         res.send({'unspentTxOuts': unspentTxOuts});
     });
 
+    app.post('/login', (req, res) => {
+        if (req.body.privateKey == null) {
+            res.send('data parameter is missing');
+            return;
+        }
+        try {
+            var privateKey = req.body.privateKey;
+            res.send({address: getPublicFromPrivate(privateKey)});
+        } catch (e) {
+            console.log(e.message);
+            res.status(400).send(e.message);
+        }
+    })
+
+    app.post('/register', (req, res) => {
+        var privateKey = generatePrivateKey();
+        res.send({privateKey, address: getPublicFromPrivate(privateKey)});
+    })
+
     app.get('/unspentTransactionOutputs', (req, res) => {
         res.send(getUnspentTxOuts());
     });
 
     app.get('/myUnspentTransactionOutputs', (req, res) => {
-        res.send(getMyUnspentTransactionOutputs());
+        var privateKey = req.body.privateKey;
+        res.send(getMyUnspentTransactionOutputs(privateKey));
     });
 
     app.post('/mineRawBlock', (req, res) => {
@@ -68,7 +88,9 @@ const initHttpServer = (myHttpPort: number) => {
     });
 
     app.post('/mineBlock', (req, res) => {
-        const newBlock: Block = generateNextBlock();
+
+        var privateKey = req.body.privateKey;
+        const newBlock: Block = generateNextBlock(privateKey);
         if (newBlock === null) {
             res.status(400).send('could not generate block');
         } else {
@@ -76,21 +98,18 @@ const initHttpServer = (myHttpPort: number) => {
         }
     });
 
-    app.get('/balance', (req, res) => {
-        const balance: number = getAccountBalance();
+    app.post('/balance', (req, res) => {
+        var privateKey = req.body.privateKey;
+        const balance: number = getAccountBalance(privateKey);
         res.send({'balance': balance});
     });
 
-    app.get('/address', (req, res) => {
-        const address: string = getPublicFromWallet();
-        res.send({'address': address});
-    });
-
     app.post('/mineTransaction', (req, res) => {
+        const privateKey = req.body.privateKey;
         const address = req.body.address;
         const amount = req.body.amount;
         try {
-            const resp = generatenextBlockWithTransaction(address, amount);
+            const resp = generatenextBlockWithTransaction(privateKey, address, amount);
             res.send(resp);
         } catch (e) {
             console.log(e.message);
@@ -100,13 +119,15 @@ const initHttpServer = (myHttpPort: number) => {
 
     app.post('/sendTransaction', (req, res) => {
         try {
+            const privateKey = req.body.privateKey;
             const address = req.body.address;
             const amount = req.body.amount;
 
             if (address === undefined || amount === undefined) {
                 throw Error('invalid address or amount');
             }
-            const resp = sendTransaction(address, amount);
+            console.log('sendTransaction', {privateKey, address, amount})
+            const resp = sendTransaction(privateKey, address, amount);
             res.send(resp);
         } catch (e) {
             console.log(e.message);
@@ -137,5 +158,4 @@ const initHttpServer = (myHttpPort: number) => {
 };
 
 initHttpServer(httpPort);
-initP2PServer(p2pPort);
-initWallet();
+// initP2PServer(p2pPort);

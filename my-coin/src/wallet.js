@@ -6,33 +6,17 @@ const _ = require("lodash");
 const transaction_1 = require("./transaction");
 const EC = new elliptic_1.ec('secp256k1');
 const privateKeyLocation = process.env.PRIVATE_KEY || 'node/wallet/private_key';
-const getPrivateFromWallet = () => {
-    const buffer = fs_1.readFileSync(privateKeyLocation, 'utf8');
-    return buffer.toString();
-};
-exports.getPrivateFromWallet = getPrivateFromWallet;
-const getPublicFromWallet = () => {
-    const privateKey = getPrivateFromWallet();
+const getPublicFromPrivate = (privateKey) => {
     const key = EC.keyFromPrivate(privateKey, 'hex');
     return key.getPublic().encode('hex');
 };
-exports.getPublicFromWallet = getPublicFromWallet;
+exports.getPublicFromPrivate = getPublicFromPrivate;
 const generatePrivateKey = () => {
     const keyPair = EC.genKeyPair();
     const privateKey = keyPair.getPrivate();
     return privateKey.toString(16);
 };
 exports.generatePrivateKey = generatePrivateKey;
-const initWallet = () => {
-    // let's not override existing private keys
-    if (fs_1.existsSync(privateKeyLocation)) {
-        return;
-    }
-    const newPrivateKey = generatePrivateKey();
-    fs_1.writeFileSync(privateKeyLocation, newPrivateKey);
-    console.log('new wallet with private key created to : %s', privateKeyLocation);
-};
-exports.initWallet = initWallet;
 const deleteWallet = () => {
     if (fs_1.existsSync(privateKeyLocation)) {
         fs_1.unlinkSync(privateKeyLocation);

@@ -35,11 +35,30 @@ const initHttpServer = (myHttpPort) => {
         const unspentTxOuts = _.filter(blockchain_1.getUnspentTxOuts(), (uTxO) => uTxO.address === req.params.address);
         res.send({ 'unspentTxOuts': unspentTxOuts });
     });
+    app.post('/login', (req, res) => {
+        if (req.body.privateKey == null) {
+            res.send('data parameter is missing');
+            return;
+        }
+        try {
+            var privateKey = req.body.privateKey;
+            res.send({ address: wallet_1.getPublicFromPrivate(privateKey) });
+        }
+        catch (e) {
+            console.log(e.message);
+            res.status(400).send(e.message);
+        }
+    });
+    app.post('/register', (req, res) => {
+        var privateKey = wallet_1.generatePrivateKey();
+        res.send({ privateKey, address: wallet_1.getPublicFromPrivate(privateKey) });
+    });
     app.get('/unspentTransactionOutputs', (req, res) => {
         res.send(blockchain_1.getUnspentTxOuts());
     });
     app.get('/myUnspentTransactionOutputs', (req, res) => {
-        res.send(blockchain_1.getMyUnspentTransactionOutputs());
+        var privateKey = req.body.privateKey;
+        res.send(blockchain_1.getMyUnspentTransactionOutputs(privateKey));
     });
     app.post('/mineRawBlock', (req, res) => {
         if (req.body.data == null) {
@@ -55,7 +74,8 @@ const initHttpServer = (myHttpPort) => {
         }
     });
     app.post('/mineBlock', (req, res) => {
-        const newBlock = blockchain_1.generateNextBlock();
+        var privateKey = req.body.privateKey;
+        const newBlock = blockchain_1.generateNextBlock(privateKey);
         if (newBlock === null) {
             res.status(400).send('could not generate block');
         }
@@ -63,19 +83,17 @@ const initHttpServer = (myHttpPort) => {
             res.send(newBlock);
         }
     });
-    app.get('/balance', (req, res) => {
-        const balance = blockchain_1.getAccountBalance();
+    app.post('/balance', (req, res) => {
+        var privateKey = req.body.privateKey;
+        const balance = blockchain_1.getAccountBalance(privateKey);
         res.send({ 'balance': balance });
     });
-    app.get('/address', (req, res) => {
-        const address = wallet_1.getPublicFromWallet();
-        res.send({ 'address': address });
-    });
     app.post('/mineTransaction', (req, res) => {
+        const privateKey = req.body.privateKey;
         const address = req.body.address;
         const amount = req.body.amount;
         try {
-            const resp = blockchain_1.generatenextBlockWithTransaction(address, amount);
+            const resp = blockchain_1.generatenextBlockWithTransaction(privateKey, address, amount);
             res.send(resp);
         }
         catch (e) {
@@ -85,12 +103,14 @@ const initHttpServer = (myHttpPort) => {
     });
     app.post('/sendTransaction', (req, res) => {
         try {
+            const privateKey = req.body.privateKey;
             const address = req.body.address;
             const amount = req.body.amount;
             if (address === undefined || amount === undefined) {
                 throw Error('invalid address or amount');
             }
-            const resp = blockchain_1.sendTransaction(address, amount);
+            console.log('sendTransaction', { privateKey, address, amount });
+            const resp = blockchain_1.sendTransaction(privateKey, address, amount);
             res.send(resp);
         }
         catch (e) {
@@ -117,6 +137,5 @@ const initHttpServer = (myHttpPort) => {
     });
 };
 initHttpServer(httpPort);
-p2p_1.initP2PServer(p2pPort);
-wallet_1.initWallet();
+// initP2PServer(p2pPort);
 //# sourceMappingURL=main.js.map
